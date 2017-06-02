@@ -1,5 +1,5 @@
 /**
- * @file        A really fast version of the Container built solely for speed
+ * @file        A really fast type of the Container built solely for speed
  * @author      fangjun.yfj
  */
 

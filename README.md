@@ -1,6 +1,6 @@
 # tinyjs-plugin-particles
 
-> A really fast version of the Container built solely for speed
+> A really fast type of the Container built solely for speed
 
 ## 查看demo
 
