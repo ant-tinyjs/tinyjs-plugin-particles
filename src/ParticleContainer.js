@@ -322,6 +322,40 @@ class ParticleContainer extends Tiny.Container {
   }
 
   /**
+   * Retrieves the bounds of the displayObject as a rectangle object.
+   *
+   * @return {Tiny.Rectangle}  the rectangular bounding area
+   */
+  getBounds() {
+    if (this.children.length <= 0) {
+      return;
+    }
+    var fi = this.children[0].getBounds();
+    var x = fi.left;
+    var y = fi.top;
+    var maxX = fi.right;
+    var maxY = fi.bottom;
+
+    this.children.forEach(function (item) {
+      var bound = item.getBounds();
+      if (bound.x < x) {
+        x = bound.left;
+      }
+      if (bound.y < y) {
+        y = bound.top;
+      }
+      if (bound.x > maxX) {
+        maxX = bound.right;
+      }
+      if (bound.y > maxY) {
+        maxY = bound.bottom;
+      }
+    });
+
+    return new Tiny.Rectangle(x, y, maxX - x, maxY - y);
+  }
+
+  /**
    * Destroys the container
    *
    * @param {object|boolean} [options] - Options parameter. A boolean will act as if all options
