@@ -7,7 +7,7 @@
  * It's extremely easy to use :
  *
  * ```js
- * let container = new Tiny.ParticleContainer();
+ * let container = new Tiny.particles.ParticleContainer();
  *
  * for (let i = 0; i < 100; ++i)
  * {
