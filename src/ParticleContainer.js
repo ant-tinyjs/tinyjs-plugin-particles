@@ -325,6 +325,7 @@ class ParticleContainer extends Tiny.Container {
    * Retrieves the bounds of the displayObject as a rectangle object.
    *
    * @return {Tiny.Rectangle}  the rectangular bounding area
+   * @version 0.0.2
    */
   getBounds() {
     if (this.children.length <= 0) {
