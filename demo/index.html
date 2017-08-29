@@ -13,11 +13,27 @@ html, body, p, div {margin:0;padding:0;}
 </head>
 <body>
 
-<script src="https://a.alipayobjects.com/g/tiny/tiny/1.1.0/tiny.js"></script>
+<script src="https://gw.alipayobjects.com/as/g/tiny/tiny/1.1.3/tiny.js"></script>
 <script src="../dist/index.js"></script>
 
 <script type="text/javascript">
-  console.log(Tiny.particles.ParticleContainer);
+  // 新建 App
+  var app = new Tiny.Application({
+    width: 400,
+    height: 400,
+    fixSize: true,
+  });
+  // 通过构造函数创建 ParticleContainer
+  var pContainer = new Tiny.particles.ParticleContainer();
+  for (var i = 0; i < 50; i++) {
+    var ant = Tiny.Sprite.fromImage('https://gw.alipayobjects.com/as/g/tiny/resources/1.0.0/images/ants/lamp.png');
+    // 设置 tint，会发现无效
+    ant.tint = Math.random() * 0xE8D4CD;
+    ant.setAnchor(0.5);
+    ant.setPosition(Math.random() * Tiny.WIN_SIZE.width, Math.random() * Tiny.WIN_SIZE.height);
+    pContainer.addChild(ant);
+  }
+  app.run(pContainer);
 </script>
 </body>
 </html>

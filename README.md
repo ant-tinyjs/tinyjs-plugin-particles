@@ -24,13 +24,15 @@
 
 引用 Tiny.js 源码
 ``` html
-<script src="http://tinyjs.net/libs/tiny.debug.js"></script>
+<script src="https://gw.alipayobjects.com/as/g/tiny/tiny/1.1.3/tiny.js"></script>
 ```
 ``` js
 var particles = require('tinyjs-plugin-particles');
 var ParticleContainer = particles.ParticleContainer;
 // 或者
 // import {ParticleContainer} from 'tinyjs-plugin-particles';
+
+var pContainer = new ParticleContainer();
 ```
 
 ## 依赖
