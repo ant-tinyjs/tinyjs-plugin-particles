@@ -4,7 +4,7 @@
 
 ## 查看demo
 
-http://tinyjs.net/#/plugins/tinyjs-plugin-particles/demo
+http://tinyjs.net/plugins/tinyjs-plugin-particles.html#demo
 
 ## 引用方法
 
@@ -24,7 +24,7 @@ http://tinyjs.net/#/plugins/tinyjs-plugin-particles/demo
 
 引用 Tiny.js 源码
 ``` html
-<script src="https://gw.alipayobjects.com/as/g/tiny/tiny/1.1.5/tiny.js"></script>
+<script src="https://gw.alipayobjects.com/as/g/tiny/tiny/1.1.7/tiny.js"></script>
 ```
 ``` js
 var particles = require('tinyjs-plugin-particles');
@@ -36,8 +36,8 @@ var pContainer = new ParticleContainer();
 ```
 
 ## 依赖
-- `Tiny.js`: [Link](http://tinyjs.net/#/docs/api)
+- `Tiny.js`: [Link](http://tinyjs.net/api)
 
 ## API文档
 
-http://tinyjs.net/#/plugins/tinyjs-plugin-particles/docs
+http://tinyjs.net/plugins/tinyjs-plugin-particles.html#docs
