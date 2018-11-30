@@ -1,22 +1,16 @@
 /**
- * The ParticleContainer class is a really fast type of the Container built solely for speed,
- * so use when you need a lot of sprites or particles. The tradeoff of the ParticleContainer is that advanced
- * functionality will not work. ParticleContainer implements only the basic object transform (position, scale, rotation).
- * Any other functionality like tinting, masking, etc will not work on sprites in this batch.
+ * The ParticleContainer class is a really fast version of the Container built solely for speed, so use when you need a lot of sprites or particles. The tradeoff of the ParticleContainer is that most advanced functionality will not work. ParticleContainer implements the basic object transform (position, scale, rotation) and some advanced functionality like tint (as of v4.5.6).
+ * Other more advanced functionality like masking, children, filters, etc will not work on sprites in this batch.
  *
- * It's extremely easy to use :
- *
- * ```js
+ * @example
+ * // here you have a hundred sprites that will be rendered at the speed of light.
  * let container = new Tiny.particles.ParticleContainer();
  *
- * for (let i = 0; i < 100; ++i)
- * {
- *     let sprite = new Tiny.Sprite.fromImage("myImage.png");
- *     container.addChild(sprite);
+ * for (let i = 0; i < 100; ++i) {
+ *   let sprite = new Tiny.Sprite.fromImage("myImage.png");
+ *   container.addChild(sprite);
  * }
- * ```
  *
- * And here you have a hundred sprites that will be renderer at the speed of light.
  *
  * @class
  * @extends Tiny.Container
@@ -24,16 +18,17 @@
  */
 class ParticleContainer extends Tiny.Container {
   /**
-   * @param {number} [maxSize=15000] - The maximum number of particles that can be renderer by the container.
+   * @param {number} [maxSize=1500] - The maximum number of particles that can be rendered by the container. Affects size of allocated buffers.
    * @param {object} [properties] - The properties of children that should be uploaded to the gpu and applied.
-   * @param {boolean} [properties.scale=false] - When true, scale be uploaded and applied.
+   * @param {boolean} [properties.vertices=false] - When true, vertices be uploaded and applied. if sprite's ` scale/anchor/trim/frame/orig` is dynamic, please set `true`.
    * @param {boolean} [properties.position=true] - When true, position be uploaded and applied.
    * @param {boolean} [properties.rotation=false] - When true, rotation be uploaded and applied.
    * @param {boolean} [properties.uvs=false] - When true, uvs be uploaded and applied.
-   * @param {boolean} [properties.alpha=false] - When true, alpha be uploaded and applied.
-   * @param {number} [batchSize=15000] - Number of particles per batch.
+   * @param {boolean} [properties.tint=false] - When true, alpha and tint be uploaded and applied.
+   * @param {number} [batchSize=16384] - Number of particles per batch. If less than maxSize, it uses maxSize instead.
+   * @param {boolean} [autoResize=false] - If true, container allocates more batches in case there are more than `maxSize` particles.
    */
-  constructor(maxSize = 1500, properties, batchSize = 16384) {
+  constructor(maxSize = 1500, properties, batchSize = 16384, autoResize = false) {
     super();
 
     // Making sure the batch size is valid
@@ -76,10 +71,20 @@ class ParticleContainer extends Tiny.Container {
     this._glBuffers = {};
 
     /**
-     * @member {number}
+     * for every batch stores _updateID corresponding to the last change in that batch
+     *
+     * @member {number[]}
      * @private
      */
-    this._bufferToUpdate = 0;
+    this._bufferUpdateIDs = [];
+
+    /**
+     * when child inserted, removed or changes position this number goes up
+     *
+     * @member {number[]}
+     * @private
+     */
+    this._updateID = 0;
 
     /**
      * @member {boolean}
@@ -88,8 +93,7 @@ class ParticleContainer extends Tiny.Container {
     this.interactiveChildren = false;
 
     /**
-     * The blend mode to be applied to the sprite. Apply a value of `Tiny.BLEND_MODES.NORMAL`
-     * to reset the blend mode.
+     * The blend mode to be applied to the sprite. Apply a value of `Tiny.BLEND_MODES.NORMAL` to reset the blend mode.
      *
      * @member {number}
      * @default Tiny.BLEND_MODES.NORMAL
@@ -98,8 +102,15 @@ class ParticleContainer extends Tiny.Container {
     this.blendMode = Tiny.BLEND_MODES.NORMAL;
 
     /**
-     * Used for canvas renderering. If true then the elements will be positioned at the
-     * nearest pixel. This provides a nice speed boost.
+     * If true, container allocates more batches in case there are more than `maxSize` particles.
+     *
+     * @member {boolean}
+     * @default false
+     */
+    this.autoResize = autoResize;
+
+    /**
+     * Used for canvas renderering. If true then the elements will be positioned at the nearest pixel. This provides a nice speed boost.
      *
      * @member {boolean}
      * @default true;
@@ -124,8 +135,8 @@ class ParticleContainer extends Tiny.Container {
      * @member {number}
      * @default 0xFFFFFF
      */
-    this._tint = null;
-    this._tintRGB = [];
+    this._tint = 0;
+    this.tintRgb = new Float32Array(4);
     this.tint = 0xFFFFFF;
   }
 
@@ -136,11 +147,11 @@ class ParticleContainer extends Tiny.Container {
    */
   setProperties(properties) {
     if (properties) {
-      this._properties[0] = 'scale' in properties ? !!properties.scale : this._properties[0];
+      this._properties[0] = 'vertices' in properties || 'scale' in properties ? !!properties.vertices || !!properties.scale : this._properties[0];
       this._properties[1] = 'position' in properties ? !!properties.position : this._properties[1];
       this._properties[2] = 'rotation' in properties ? !!properties.rotation : this._properties[2];
       this._properties[3] = 'uvs' in properties ? !!properties.uvs : this._properties[3];
-      this._properties[4] = 'alpha' in properties ? !!properties.alpha : this._properties[4];
+      this._properties[4] = 'tint' in properties || 'alpha' in properties ? !!properties.tint || !!properties.alpha : this._properties[4];
     }
   }
 
@@ -158,7 +169,8 @@ class ParticleContainer extends Tiny.Container {
   /**
    * The tint applied to the container. This is a hex value.
    * A value of 0xFFFFFF will remove any tint effect.
-   ** IMPORTANT: This is a webGL only feature and will be ignored by the canvas renderer.
+   * *IMPORTANT*: This is a webGL only feature and will be ignored by the canvas renderer.
+   *
    * @member {number}
    * @default 0xFFFFFF
    */
@@ -168,7 +180,7 @@ class ParticleContainer extends Tiny.Container {
 
   set tint(value) {
     this._tint = value;
-    Tiny.hex2rgb(value, this._tintRGB);
+    Tiny.hex2rgb(value, this.tintRgb);
   }
 
   /**
@@ -202,9 +214,10 @@ class ParticleContainer extends Tiny.Container {
   onChildrenChange(smallestChildIndex) {
     const bufferIndex = Math.floor(smallestChildIndex / this._batchSize);
 
-    if (bufferIndex < this._bufferToUpdate) {
-      this._bufferToUpdate = bufferIndex;
+    while (this._bufferUpdateIDs.length < bufferIndex) {
+      this._bufferUpdateIDs.push(0);
     }
+    this._bufferUpdateIDs[bufferIndex] = ++this._updateID;
   }
 
   /**
@@ -228,11 +241,7 @@ class ParticleContainer extends Tiny.Container {
     let finalWidth = 0;
     let finalHeight = 0;
 
-    const compositeOperation = renderer.blendModes[this.blendMode];
-
-    if (compositeOperation !== context.globalCompositeOperation) {
-      context.globalCompositeOperation = compositeOperation;
-    }
+    renderer.setBlendMode(this.blendMode);
 
     context.globalAlpha = this.worldAlpha;
 
@@ -324,21 +333,21 @@ class ParticleContainer extends Tiny.Container {
   /**
    * Retrieves the bounds of the displayObject as a rectangle object.
    *
-   * @return {Tiny.Rectangle}  the rectangular bounding area
+   * @return {Tiny.Rectangle} - the rectangular bounding area
    * @version 0.0.2
    */
   getBounds() {
     if (this.children.length <= 0) {
       return;
     }
-    var fi = this.children[0].getBounds();
-    var x = fi.left;
-    var y = fi.top;
-    var maxX = fi.right;
-    var maxY = fi.bottom;
+    const fi = this.children[0].getBounds();
+    let x = fi.left;
+    let y = fi.top;
+    let maxX = fi.right;
+    let maxY = fi.bottom;
 
-    this.children.forEach(function (item) {
-      var bound = item.getBounds();
+    this.children.forEach(function(item) {
+      const bound = item.getBounds();
       if (bound.x < x) {
         x = bound.left;
       }
@@ -359,14 +368,10 @@ class ParticleContainer extends Tiny.Container {
   /**
    * Destroys the container
    *
-   * @param {object|boolean} [options] - Options parameter. A boolean will act as if all options
-   *  have been set to that value
-   * @param {boolean} [options.children=false] - if set to true, all the children will have their
-   *  destroy method called as well. 'options' will be passed on to those calls.
-   * @param {boolean} [options.texture=false] - Only used for child Sprites if options.children is set to true
-   *  Should it destroy the texture of the child sprite
-   * @param {boolean} [options.baseTexture=false] - Only used for child Sprites if options.children is set to true
-   *  Should it destroy the base texture of the child sprite
+   * @param {object|boolean} [options] - Options parameter. A boolean will act as if all options have been set to that value
+   * @param {boolean} [options.children=false] - If set to true, all the children will have their destroy method called as well. 'options' will be passed on to those calls.
+   * @param {boolean} [options.texture=false] - Only used for child Sprites if options.children is set to true. Should it destroy the texture of the child sprite
+   * @param {boolean} [options.baseTexture=false] - Only used for child Sprites if options.children is set to true. Should it destroy the base texture of the child sprite
    */
   destroy(options) {
     super.destroy(options);
@@ -379,6 +384,7 @@ class ParticleContainer extends Tiny.Container {
 
     this._properties = null;
     this._buffers = null;
+    this._bufferUpdateIDs = null;
   }
 }
 

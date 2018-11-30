@@ -4,10 +4,8 @@ import ParticleBuffer from './ParticleBuffer';
 /**
  * @author Mat Groves
  *
- * Big thanks to the very clever Matt DesLauriers <mattdesl> https://github.com/mattdesl/
- * for creating the original pixi version!
- * Also a thanks to https://github.com/bchevalier for tweaking the tint and alpha so that they now
- * share 4 bytes on the vertex buffer
+ * Big thanks to the very clever Matt DesLauriers <mattdesl> https://github.com/mattdesl/ for creating the original TinyJS version!
+ * Also a thanks to https://github.com/bchevalier for tweaking the tint and alpha so that they now share 4 bytes on the vertex buffer
  *
  * Heavily inspired by LibGDX's ParticleRenderer:
  * https://github.com/libgdx/libgdx/blob/master/gdx/src/com/badlogic/gdx/graphics/g2d/ParticleRenderer.java
@@ -90,11 +88,12 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
         uploadFunction: this.uploadUvs,
         offset: 0,
       },
-      // alphaData
+      // tintData
       {
         attribute: this.shader.attributes.aColor,
         size: 1,
-        uploadFunction: this.uploadAlpha,
+        unsignedByte: true,
+        uploadFunction: this.uploadTint,
         offset: 0,
       },
     ];
@@ -132,8 +131,10 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
       buffers = container._glBuffers[renderer.CONTEXT_UID] = this.generateBuffers(container);
     }
 
+    const baseTexture = children[0]._texture.baseTexture;
+
     // if the uvs have not updated then no point rendering just yet!
-    this.renderer.setBlendMode(container.blendMode);
+    this.renderer.setBlendMode(Tiny.correctBlendMode(container.blendMode, baseTexture.premultipliedAlpha));
 
     const gl = renderer.gl;
 
@@ -142,13 +143,13 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
     m.prepend(renderer._activeRenderTarget.projectionMatrix);
 
     this.shader.uniforms.projectionMatrix = m.toArray(true);
-    this.shader.uniforms.uAlpha = container.worldAlpha;
-    this.shader.uniforms.tint = container._tintRGB;
+    this.shader.uniforms.uColor = Tiny.premultiplyRgba(container.tintRgb,
+      container.worldAlpha, this.shader.uniforms.uColor, baseTexture.premultipliedAlpha);
 
     // make sure the texture is bound..
-    const baseTexture = children[0]._texture.baseTexture;
-
     this.shader.uniforms.uSampler = renderer.bindTexture(baseTexture);
+
+    let updateStatic = false;
 
     // now lets upload and render the buffers..
     for (let i = 0, j = 0; i < totalChildren; i += batchSize, j += 1) {
@@ -158,15 +159,25 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
         amount = batchSize;
       }
 
+      if (j >= buffers.length) {
+        if (!container.autoResize) {
+          break;
+        }
+        buffers.push(this._generateOneMoreBuffer(container));
+      }
+
       const buffer = buffers[j];
 
       // we always upload the dynamic
       buffer.uploadDynamic(children, i, amount);
 
+      const bid = container._bufferUpdateIDs[j] || 0;
+
+      updateStatic = updateStatic || (buffer._updateID < bid);
       // we only upload the static content when we have to!
-      if (container._bufferToUpdate === j) {
+      if (updateStatic) {
+        buffer._updateID = container._updateID;
         buffer.uploadStatic(children, i, amount);
-        container._bufferToUpdate = j + 1;
       }
 
       // bind the buffer
@@ -196,11 +207,26 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
   }
 
   /**
+   * Creates one more particle buffer, because container has autoResize feature
+   *
+   * @param {Tiny.ParticleContainer} container - The container to render using this ParticleRenderer
+   * @return {Tiny.ParticleBuffer} generated buffer
+   * @private
+   */
+  _generateOneMoreBuffer(container) {
+    const gl = this.renderer.gl;
+    const batchSize = container._batchSize;
+    const dynamicPropertyFlags = container._properties;
+
+    return new ParticleBuffer(gl, this.properties, dynamicPropertyFlags, batchSize);
+  }
+
+  /**
    * Uploads the verticies.
    *
-   * @param {Tiny.DisplayObject[]} children - the array of display objects to render
-   * @param {number} startIndex - the index to start from in the children array
-   * @param {number} amount - the amount of children that will have their vertices uploaded
+   * @param {Tiny.DisplayObject[]} children - The array of display objects to render
+   * @param {number} startIndex - The index to start from in the children array
+   * @param {number} amount - The amount of children that will have their vertices uploaded
    * @param {number[]} array - The vertices to upload.
    * @param {number} stride - Stride to use for iteration.
    * @param {number} offset - Offset to start at.
@@ -253,9 +279,9 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
 
   /**
    *
-   * @param {Tiny.DisplayObject[]} children - the array of display objects to render
-   * @param {number} startIndex - the index to start from in the children array
-   * @param {number} amount - the amount of children that will have their positions uploaded
+   * @param {Tiny.DisplayObject[]} children - The array of display objects to render
+   * @param {number} startIndex - The index to start from in the children array
+   * @param {number} amount - The amount of children that will have their positions uploaded
    * @param {number[]} array - The vertices to upload.
    * @param {number} stride - Stride to use for iteration.
    * @param {number} offset - Offset to start at.
@@ -282,9 +308,9 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
 
   /**
    *
-   * @param {Tiny.DisplayObject[]} children - the array of display objects to render
-   * @param {number} startIndex - the index to start from in the children array
-   * @param {number} amount - the amount of children that will have their rotation uploaded
+   * @param {Tiny.DisplayObject[]} children - The array of display objects to render
+   * @param {number} startIndex - The index to start from in the children array
+   * @param {number} amount - The amount of children that will have their rotation uploaded
    * @param {number[]} array - The vertices to upload.
    * @param {number} stride - Stride to use for iteration.
    * @param {number} offset - Offset to start at.
@@ -304,9 +330,9 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
 
   /**
    *
-   * @param {Tiny.DisplayObject[]} children - the array of display objects to render
-   * @param {number} startIndex - the index to start from in the children array
-   * @param {number} amount - the amount of children that will have their rotation uploaded
+   * @param {Tiny.DisplayObject[]} children - The array of display objects to render
+   * @param {number} startIndex - The index to start from in the children array
+   * @param {number} amount - The amount of children that will have their rotation uploaded
    * @param {number[]} array - The vertices to upload.
    * @param {number} stride - Stride to use for iteration.
    * @param {number} offset - Offset to start at.
@@ -350,21 +376,25 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
 
   /**
    *
-   * @param {Tiny.DisplayObject[]} children - the array of display objects to render
-   * @param {number} startIndex - the index to start from in the children array
-   * @param {number} amount - the amount of children that will have their rotation uploaded
+   * @param {Tiny.DisplayObject[]} children - The array of display objects to render
+   * @param {number} startIndex - The index to start from in the children array
+   * @param {number} amount - The amount of children that will have their rotation uploaded
    * @param {number[]} array - The vertices to upload.
    * @param {number} stride - Stride to use for iteration.
    * @param {number} offset - Offset to start at.
    */
-  uploadAlpha(children, startIndex, amount, array, stride, offset) {
-    for (let i = 0; i < amount; i++) {
-      const spriteAlpha = children[startIndex + i].alpha;
+  uploadTint(children, startIndex, amount, array, stride, offset) {
+    for (let i = 0; i < amount; ++i) {
+      const sprite = children[startIndex + i];
+      const premultiplied = sprite._texture.baseTexture.premultipliedAlpha;
+      const alpha = sprite.alpha;
+      // we dont call extra function if alpha is 1.0, that's faster
+      const argb = alpha < 1.0 && premultiplied ? Tiny.premultiplyTint(sprite._tintRGB, alpha) : sprite._tintRGB + (alpha * 255 << 24);
 
-      array[offset] = spriteAlpha;
-      array[offset + stride] = spriteAlpha;
-      array[offset + (stride * 2)] = spriteAlpha;
-      array[offset + (stride * 3)] = spriteAlpha;
+      array[offset] = argb;
+      array[offset + stride] = argb;
+      array[offset + (stride * 2)] = argb;
+      array[offset + (stride * 3)] = argb;
 
       offset += stride * 4;
     }
@@ -386,7 +416,6 @@ class ParticleRenderer extends Tiny.ObjectRenderer {
     this.indices = null;
     this.tempMatrix = null;
   }
-
 }
 
 Tiny.WebGLRenderer.registerPlugin('particle', ParticleRenderer);
