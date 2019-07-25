@@ -315,9 +315,14 @@ class ParticleContainer extends Tiny.Container {
       }
 
       const resolution = child._texture.baseTexture.resolution;
+      let source = child._texture.baseTexture.source;
+
+      if (navigator.isAppXCanvasPlus) {
+        source = source.src;
+      }
 
       context.drawImage(
-        child._texture.baseTexture.source,
+        source,
         frame.x * resolution,
         frame.y * resolution,
         frame.width * resolution,
