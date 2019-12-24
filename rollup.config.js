@@ -19,14 +19,13 @@ const banner = `/*!
  * Version: v${pkg.version}
  */
 ${cjs ? `
-// AppX: adapter for the alipay mini program
-if (typeof my !== 'undefined') {
-  window = my.window
+// AppX: adapter for the alibaba mini program
+if (typeof $global !== 'undefined') {
+  window = $global.window
   navigator = window.navigator
-  Tiny = my.Tiny
+  Tiny = $global.Tiny
 }
-` : ''}
-`;
+` : ''}`;
 
 const config = {
   input: 'src/index.js',
