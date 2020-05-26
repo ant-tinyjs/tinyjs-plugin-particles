@@ -1,6 +1,6 @@
 {
   "name": "tinyjs-plugin-particles",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "yiiqii",
   "description": "A really fast type of the Container built solely for speed",
   "keywords": [
@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/ant-tinyjs/tinyjs-plugin-particles.git"
   },
-  "main": "main.js",
+  "main": "index.debug.js",
   "files": [
     "index.js",
     "index.debug.js",

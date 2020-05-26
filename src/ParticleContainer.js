@@ -318,7 +318,9 @@ class ParticleContainer extends Tiny.Container {
       let source = child._texture.baseTexture.source;
 
       if (navigator.isAppXCanvasPlus) {
-        source = source.src;
+        if (source.tagName === 'IMAGE') {
+          source = navigator.canUseBinding ? source.$realImage : source.src;
+        }
       }
 
       context.drawImage(
