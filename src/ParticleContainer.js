@@ -1,5 +1,5 @@
 /**
- * The ParticleContainer class is a really fast version of the Container built solely for speed, so use when you need a lot of sprites or particles. The tradeoff of the ParticleContainer is that most advanced functionality will not work. ParticleContainer implements the basic object transform (position, scale, rotation) and some advanced functionality like tint (as of v4.5.6).
+ * The ParticleContainer class is a really fast version of the Container built solely for speed, so use when you need a lot of sprites or particles. The tradeoff of the ParticleContainer is that most advanced functionality will not work. ParticleContainer implements the basic object transform (position, scale, rotation) and some advanced functionality like tint.
  * Other more advanced functionality like masking, children, filters, etc will not work on sprites in this batch.
  *
  * @example
@@ -335,41 +335,6 @@ class ParticleContainer extends Tiny.Container {
         finalHeight * renderer.resolution
       );
     }
-  }
-
-  /**
-   * Retrieves the bounds of the displayObject as a rectangle object.
-   *
-   * @return {Tiny.Rectangle} - the rectangular bounding area
-   * @version 0.0.2
-   */
-  getBounds() {
-    if (this.children.length <= 0) {
-      return;
-    }
-    const fi = this.children[0].getBounds();
-    let x = fi.left;
-    let y = fi.top;
-    let maxX = fi.right;
-    let maxY = fi.bottom;
-
-    this.children.forEach(function(item) {
-      const bound = item.getBounds();
-      if (bound.x < x) {
-        x = bound.left;
-      }
-      if (bound.y < y) {
-        y = bound.top;
-      }
-      if (bound.x > maxX) {
-        maxX = bound.right;
-      }
-      if (bound.y > maxY) {
-        maxY = bound.bottom;
-      }
-    });
-
-    return new Tiny.Rectangle(x, y, maxX - x, maxY - y);
   }
 
   /**
